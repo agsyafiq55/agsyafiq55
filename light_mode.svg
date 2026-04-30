@@ -8,15 +8,15 @@ font-display: swap;
 -webkit-size-adjust: 109%;
 size-adjust: 109%;
 }
-.key {fill: #953800;}
+.key {fill: #FF0022;}
 .value {fill: #0a3069;}
 .addColor {fill: #1a7f37;}
-.delColor {fill: #cf222e;}
+.delColor {fill: #FF0022;}
 .cc {fill: #c2cfde;}
 text, tspan {white-space: pre;}
 </style>
 <rect width="985px" height="440px" fill="#f6f8fa" rx="15"/>
-<text x="15" y="105" fill="#cf222e" class="ascii" font-size="9px" transform="translate(0, -30)">
+<text x="15" y="105" fill="#FF0022" class="ascii" font-size="9px" transform="translate(0, -30)">
 <tspan x="15" y="105">⢰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠀</tspan>
 <tspan x="15" y="117">⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀</tspan>
 <tspan x="15" y="129">⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠯⠟⠚⢻⣿⣿⣿⣿⣿⣿⣿⡟⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⡇</tspan>
