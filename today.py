@@ -40,14 +40,39 @@ def format_plural(unit):
     return 's' if unit != 1 else ''
 
 
-def simple_request(func_name, query, variables):
+def simple_request(func_name, query, variables, retries=3, retry_delay=3):
     """
     Returns a request, or raises an Exception if the response does not succeed.
+    GitHub's GraphQL API answers with a 200 even when part of a query fails, so the body is
+    checked for errors and the request is retried before falling back to whatever data came back.
     """
-    request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables':variables}, headers=HEADERS)
-    if request.status_code == 200:
-        return request
+    for attempt in range(1, retries + 1):
+        request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables':variables}, headers=HEADERS)
+        if request.status_code == 200:
+            errors = request.json().get('errors')
+            if not errors:
+                return request
+            print(func_name, 'got GraphQL errors on attempt', str(attempt) + '/' + str(retries) + ':', errors)
+            if attempt == retries and request.json().get('data'):
+                print(func_name, 'is continuing with the partial data GitHub returned')
+                return request
+        else:
+            print(func_name, 'got a', request.status_code, 'on attempt', str(attempt) + '/' + str(retries))
+        if attempt < retries:
+            time.sleep(retry_delay * attempt)
     raise Exception(func_name, ' has failed with a', request.status_code, request.text, QUERY_COUNT)
+
+
+def filter_edges(func_name, edges):
+    """
+    Drops repository edges that GitHub returned as null
+    This happens when a repository is inaccessible to the token or when GitHub only partially
+    resolves the query, and an unfiltered null node crashes every function that walks the edges
+    """
+    filtered = [edge for edge in edges if edge is not None and edge.get('node') is not None]
+    if len(filtered) != len(edges):
+        print(func_name, 'skipped', len(edges) - len(filtered), 'repositories that GitHub returned as null')
+    return filtered
 
 
 def graph_commits(start_date, end_date):
@@ -103,7 +128,7 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None, add_loc=0, del
         if count_type == 'repos':
             return request.json()['data']['user']['repositories']['totalCount']
         elif count_type == 'stars':
-            return stars_counter(request.json()['data']['user']['repositories']['edges'])
+            return stars_counter(filter_edges(graph_repos_stars.__name__, request.json()['data']['user']['repositories']['edges']))
 
 
 def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, deletion_total=0, my_commits=0, cursor=None):
@@ -208,11 +233,12 @@ def loc_query(owner_affiliation, comment_size=0, force_cache=False, cursor=None,
     }'''
     variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
     request = simple_request(loc_query.__name__, query, variables)
+    page = filter_edges(loc_query.__name__, request.json()['data']['user']['repositories']['edges'])
     if request.json()['data']['user']['repositories']['pageInfo']['hasNextPage']:   # If repository data has another page
-        edges += request.json()['data']['user']['repositories']['edges']            # Add on to the LoC count
+        edges += page                                                              # Add on to the LoC count
         return loc_query(owner_affiliation, comment_size, force_cache, request.json()['data']['user']['repositories']['pageInfo']['endCursor'], edges)
     else:
-        return cache_builder(edges + request.json()['data']['user']['repositories']['edges'], comment_size, force_cache)
+        return cache_builder(edges + page, comment_size, force_cache)
 
 
 def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
