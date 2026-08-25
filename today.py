@@ -13,6 +13,8 @@ import hashlib
 HEADERS = {'authorization': 'token '+ os.environ['ACCESS_TOKEN']}
 USER_NAME = os.environ['USER_NAME'] # 'agsyafiq55'
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0, 'recursive_loc': 0, 'graph_commits': 0, 'loc_query': 0}
+# GraphQL error types that will never succeed on a retry, because they are about the token or the query itself
+PERMANENT_ERRORS = {'FORBIDDEN', 'NOT_FOUND', 'UNAUTHORIZED', 'INSUFFICIENT_SCOPES'}
 
 
 def daily_readme(birthday):
@@ -52,10 +54,15 @@ def simple_request(func_name, query, variables, retries=3, retry_delay=3):
             errors = request.json().get('errors')
             if not errors:
                 return request
-            print(func_name, 'got GraphQL errors on attempt', str(attempt) + '/' + str(retries) + ':', errors)
-            if attempt == retries and request.json().get('data'):
+            print(func_name, 'got', len(errors), 'GraphQL errors on attempt', str(attempt) + '/' + str(retries) + '.',
+                'First one:', errors[0].get('type'), '-', errors[0].get('message'), 'at', errors[0].get('path'))
+            # permission and lookup failures are settled, so only a transient error is worth another attempt
+            permanent = all(error.get('type') in PERMANENT_ERRORS for error in errors)
+            if (permanent or attempt == retries) and request.json().get('data'):
                 print(func_name, 'is continuing with the partial data GitHub returned')
                 return request
+            if permanent:
+                break
         else:
             print(func_name, 'got a', request.status_code, 'on attempt', str(attempt) + '/' + str(retries))
         if attempt < retries:
@@ -109,9 +116,7 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None, add_loc=0, del
                     node {
                         ... on Repository {
                             nameWithOwner
-                            stargazers {
-                                totalCount
-                            }
+                            stargazerCount
                         }
                     }
                 }
@@ -338,7 +343,7 @@ def stars_counter(data):
     Count total stars in repositories owned by me
     """
     total_stars = 0
-    for node in data: total_stars += node['node']['stargazers']['totalCount']
+    for node in data: total_stars += node['node']['stargazerCount']
     return total_stars
 
 
